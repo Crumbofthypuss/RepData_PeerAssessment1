@@ -6,20 +6,87 @@ output:
 ---
 
 
+For this assignment, we are required to answer a set of question using R Markdown.
+The full list of instructions are written in this [link](https://github.com/Crumbofthypuss/RepData_PeerAssessment1/blob/master/README.md).
+
+We set all R codes to be visible. We also call out the libraries to be used.
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+```
+
 ## Loading and preprocessing the data
-
-
+First, download the data that can be found in the link.
+Assuming that the file is downloaded and unzipped already, read the file.
+```{r}
+activity <- read.csv("activity.csv")
+head(activity)
+```
 
 ## What is mean total number of steps taken per day?
+First, compute for the total number of steps taken per day then make histogram
+```{r}
+totalsteps<- activity %>% group_by(date) %>% summarise(total=sum(steps,na.rm=TRUE))
+hist(totalsteps$total,xlab="Total steps per day",main="Histogram of total steps taken per day",breaks=20)
+```
 
-
+Computing for the mean and median of the sum of steps per day
+```{r}
+meandays<-mean(totalsteps$total)
+mediandays<-median(totalsteps$total)
+```
+The mean of steps taken per day is **`r meandays`** and the median is **`r mediandays`**.
 
 ## What is the average daily activity pattern?
+First step is to compute for the average number of steps for all days depending on interval
+then plot the average and the interval
+```{r}
+averagesteps<- activity %>% group_by(interval) %>% summarise(average=mean(steps,na.rm=TRUE))
+with(averagesteps,plot(x=interval,y=average,type="l",xlab="Average steps",ylab="Intervals",main="Average Steps vs intervals"))
+```
 
-
+Determining which interval has the maximum number of steps on average
+```{r}
+maxinterval<-averagesteps[which.max(averagesteps$average),]$interval
+```
+The interval containing the highest averaged steps is **`r maxinterval`**.
 
 ## Imputing missing values
+Computing for the total amount of missing values in the dataset
+```{r}
+sum(is.na(activity$steps))
+```
 
+This time, we will replace missing values with the mean from each corresponding interval
+```{r}
+newActivity<- activity %>% group_by(interval) %>% mutate(steps=replace(steps,is.na(steps),mean(steps,na.rm=TRUE)))
+head(newActivity)
+```
 
+A new dataset newActivity has been created. Making a histogram from it
+```{r}
+newtotalsteps<- newActivity %>% group_by(date) %>% summarise(total=sum(steps,na.rm=TRUE))
+hist(newtotalsteps$total,xlab="Total steps per day",main="Histogram of total steps taken per day",breaks=20)
+```
+
+Getting the new mean and total and determining the change
+```{r}
+newmeandays<-mean(newtotalsteps$total)
+newmediandays<-median(newtotalsteps$total)
+meandiff<- newmeandays - meandays
+mediandiff<- newmediandays - mediandays
+```
+The difference in mean is **`r meandiff`** and **`r mediandiff`** in median.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+First, create a vector containing the factor for weekdays and weekends
+```{r}
+newActivity$weeklabel<- ifelse(weekdays(as.Date(activity$date)) %in% c("Saturday","Sunday"),"weekend","weekday")
+```
+
+Making the panel plot of the time series plot and average number of steps using ggplot
+```{r}
+newaveragesteps<- newActivity %>% group_by(interval,weeklabel) %>% summarise(average=mean(steps,na.rm=TRUE))
+ggplot(newaveragesteps,aes(x=interval,y=average,color=weeklabel)) + geom_line() + facet_grid(weeklabel~.) + labs(y="Average number of steps",x="interval",title="Average number of steps taken per interval in weekday or weekend",col="type of day")
+```
